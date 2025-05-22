@@ -2,6 +2,7 @@ from flask import Flask
 from flask import render_template
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from flask import request,redirect
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'     #this is the way to defince the database URI
@@ -20,22 +21,45 @@ class ToDo(db.Model):       #creating a class for every entry in the database. A
     def __repr__(self) -> str:
         return f"{self.sno} - {self.title}"
 
-@app.route("/")
+@app.route("/", methods = ['GET','POST'])
 def hello_world():
-    todo=ToDo(title="Enter the Title",desc="Enter the Description")
-    db.session.add(todo)
-    db.session.commit()
-    return render_template('index.html')
-
-@app.route("/products")
-def products(): 
-    return "This is Products Page"
+    if request.method=='POST':
+        title = request.form['title']
+        desc = request.form['desc']
+        todo=ToDo(title=title,desc=desc)
+        db.session.add(todo)
+        db.session.commit()
+    allTodo=ToDo.query.all()
+    return render_template('index.html',allTodo=allTodo)    #passing allTodo(all entries) to the index.html which will be rendered.
 
 @app.route("/show")     #to show all the entries present in the database
-def prod():
+def show():
     allToDo=ToDo.query.all()
     print(allToDo)
     return 'check terminal'
+
+@app.route("/Update/<int:sno>", methods=['GET','POST'])     #to show all the entries present in the database
+def update(sno):
+    if request.method=='POST':
+        title=request.form['title']
+        desc=request.form['desc']
+        todo=db.get_or_404(ToDo,sno)
+        todo.title=title
+        todo.desc=desc
+        db.session.add(todo)
+        db.session.commit()
+        return redirect('/')
+    todo=db.get_or_404(ToDo,sno)
+    return render_template('update.html',todo=todo)
+
+@app.route("/delete/<int:sno>")     #to show all the entries present in the database
+def delete(sno):
+    todo=db.get_or_404(ToDo,sno)
+    db.session.delete(todo)
+    db.session.commit()
+    allTodo=ToDo.query.all()
+    return render_template('index.html',allTodo=allTodo)
+    
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
